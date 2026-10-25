@@ -16,3 +16,21 @@ class UserResponse(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+class GroupCreate(BaseModel):
+    name: str
+
+class GroupResponse(BaseModel):
+    id: int
+    name: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+class InviteMember(BaseModel):
+    email: EmailStr
+
+class GroupMemberResponse(BaseModel):
+    user_id: int
+    email: EmailStr
+    role: str
