@@ -1,5 +1,5 @@
 from datetime import datetime
-
+from typing import List
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 class UserCreate(BaseModel):
@@ -16,6 +16,7 @@ class UserResponse(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
 
 class GroupCreate(BaseModel):
     name: str
@@ -34,3 +35,34 @@ class GroupMemberResponse(BaseModel):
     user_id: int
     email: EmailStr
     role: str
+
+
+class ExpenseSplitCreate(BaseModel):
+    user_id: int
+    amount: int
+
+class ExpenseCreate(BaseModel):
+    description: str
+    amount: int
+    paid_by: int
+    splits: List[ExpenseSplitCreate]
+
+class ExpenseSplitResponse(BaseModel):
+    user_id: int
+    amount: int
+
+    model_config = ConfigDict(from_attributes=True)
+
+class ExpenseResponse(BaseModel):
+    id: int
+    description: str
+    amount: int
+    paid_by: int
+    created_at: datetime
+    splits: List[ExpenseSplitResponse]
+
+    model_config = ConfigDict(from_attributes=True)
+
+class BalanceResponse(BaseModel):
+    email: EmailStr
+    balance: int
