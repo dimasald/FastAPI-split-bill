@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Split Bill</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700;9..144,900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="toast" class="toast hidden"></div>
+
+  <section id="view-auth" class="view">
+    <div class="auth-wrap">
+      <div class="auth-brand">
+        <span class="brand-mark">S</span>
+        <h1 class="auth-title">Split Bill</h1>
+        <p class="auth-tagline">Split without the drama.</p>
+      </div>
+      <div class="card auth-card">
+        <div class="tab-switch" role="tablist">
+          <button class="tab-btn is-active" data-auth-tab="login" type="button">Sign in</button>
+          <button class="tab-btn" data-auth-tab="register" type="button">Create account</button>
+        </div>
+        <form id="form-login" class="stack" novalidate>
+          <label class="field">
+            <span class="field-label">Email</span>
+            <input type="email" name="email" required autocomplete="email" placeholder="you@example.com">
+          </label>
+          <label class="field">
+            <span class="field-label">Password</span>
+            <input type="password" name="password" required autocomplete="current-password">
+          </label>
+          <button class="btn btn-primary" type="submit">Sign in</button>
+        </form>
+        <form id="form-register" class="stack hidden" novalidate>
+          <label class="field">
+            <span class="field-label">Email</span>
+            <input type="email" name="email" required autocomplete="email" placeholder="you@example.com">
+          </label>
+          <label class="field">
+            <span class="field-label">Password</span>
+            <input type="password" name="password" required minlength="8" autocomplete="new-password">
+            <span class="field-hint">At least 8 characters.</span>
+          </label>
+          <button class="btn btn-primary" type="submit">Create account</button>
+        </form>
+        <p id="auth-error" class="form-error hidden"></p>
+      </div>
+    </div>
+  </section>
+
+  <section id="view-dashboard" class="view hidden">
+    <header class="topbar">
+      <div class="topbar-left">
+        <span class="brand-mark sm">S</span>
+        <span class="brand-name">Split Bill</span>
+      </div>
+      <div class="topbar-right">
+        <span id="dash-user" class="user-email"></span>
+        <button id="btn-logout" class="btn btn-ghost" type="button">Sign out</button>
+      </div>
+    </header>
+    <main class="page">
+      <header class="page-head">
+        <div>
+          <p class="kicker">Your groups</p>
+          <h2 class="page-title">Where the bills live.</h2>
+        </div>
+        <button id="btn-new-group" class="btn btn-primary" type="button">+ New group</button>
+      </header>
+      <ol id="groups-list" class="groups-list"></ol>
+      <div id="groups-empty" class="empty hidden">
+        <p class="empty-mark">—</p>
+        <p class="empty-text">No groups yet. Start one to split your first bill.</p>
+        <button id="btn-new-group-2" class="btn btn-primary" type="button">+ New group</button>
+      </div>
+    </main>
+  </section>
+
+  <section id="view-group" class="view hidden">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button id="btn-back" class="btn btn-ghost" type="button">← Back</button>
+        <span class="brand-name">Split Bill</span>
+      </div>
+      <div class="topbar-right">
+        <span id="group-user" class="user-email"></span>
+        <button id="btn-logout-2" class="btn btn-ghost" type="button">Sign out</button>
+      </div>
+    </header>
+    <main class="page">
+      <header class="group-head">
+        <p class="kicker">Group</p>
+        <h2 id="group-title" class="group-title">—</h2>
+      </header>
+      <nav class="tabs" role="tablist">
+        <button class="tab-btn is-active" data-group-tab="expenses" type="button">Expenses</button>
+        <button class="tab-btn" data-group-tab="balances" type="button">Balances</button>
+        <button class="tab-btn" data-group-tab="members" type="button">Members</button>
+        <button class="tab-btn" data-group-tab="settle" type="button">Settle up</button>
+      </nav>
+
+      <section id="panel-expenses" class="panel">
+        <div class="panel-head">
+          <h3>Expenses</h3>
+          <button id="btn-add-expense" class="btn btn-primary" type="button">+ Add expense</button>
+        </div>
+        <ol id="expenses-list" class="expenses-list"></ol>
+        <div id="expenses-empty" class="empty hidden">
+          <p class="empty-mark">—</p>
+          <p class="empty-text">No expenses yet.</p>
+        </div>
+      </section>
+
+      <section id="panel-balances" class="panel hidden">
+        <div class="panel-head"><h3>Balances</h3></div>
+        <table class="ledger">
+          <thead>
+            <tr><th>Member</th><th class="num">Balance</th></tr>
+          </thead>
+          <tbody id="balances-body"></tbody>
+        </table>
+      </section>
+
+      <section id="panel-members" class="panel hidden">
+        <div class="panel-head">
+          <h3>Members</h3>
+          <button id="btn-invite" class="btn btn-primary" type="button">+ Invite</button>
+        </div>
+        <ul id="members-list" class="members-list"></ul>
+      </section>
+
+      <section id="panel-settle" class="panel hidden">
+        <div class="panel-head"><h3>Settle up</h3></div>
+        <div class="settle-grid">
+          <div class="card settle-card">
+            <h4>Record a payment</h4>
+            <form id="form-settle" class="stack" novalidate>
+              <label class="field">
+                <span class="field-label">Pay to</span>
+                <select name="payee_id" required></select>
+              </label>
+              <label class="field">
+                <span class="field-label">Amount</span>
+                <input type="number" name="amount" min="1" step="1" required>
+              </label>
+              <button class="btn btn-primary" type="submit">Record payment</button>
+            </form>
+          </div>
+          <div class="card settle-card">
+            <h4>Suggested transfers</h4>
+            <ul id="suggestions-list" class="suggestions-list"></ul>
+            <div id="suggestions-empty" class="empty small hidden">
+              <p class="empty-text">All settled up.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </section>
+
+  <dialog id="dlg-group" class="dialog">
+    <form id="form-group" class="stack" novalidate>
+      <h3>New group</h3>
+      <label class="field">
+        <span class="field-label">Group name</span>
+        <input type="text" name="name" required maxlength="80" placeholder="Bali trip">
+      </label>
+      <p id="group-error" class="form-error hidden"></p>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-ghost" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Create group</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-invite" class="dialog">
+    <form id="form-invite" class="stack" novalidate>
+      <h3>Invite member</h3>
+      <label class="field">
+        <span class="field-label">Email</span>
+        <input type="email" name="email" required placeholder="friend@example.com">
+      </label>
+      <p id="invite-error" class="form-error hidden"></p>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-ghost" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Send invite</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dlg-expense" class="dialog dialog-wide">
+    <form id="form-expense" class="stack" novalidate>
+      <h3>New expense</h3>
+      <label class="field">
+        <span class="field-label">Description</span>
+        <input type="text" name="description" required maxlength="120" placeholder="Dinner">
+      </label>
+      <label class="field">
+        <span class="field-label">Amount</span>
+        <input type="number" name="amount" min="1" step="1" required>
+      </label>
+      <div class="field">
+        <span class="field-label">Paid by</span>
+        <p class="field-static" id="expense-payer">You</p>
+      </div>
+      <div class="field">
+        <span class="field-label">Split between</span>
+        <div class="split-toolbar">
+          <button type="button" id="btn-split-even" class="btn btn-ghost btn-sm">Split evenly</button>
+          <span id="split-sum" class="split-sum">0 / 0</span>
+        </div>
+        <ul id="split-list" class="split-list"></ul>
+      </div>
+      <p id="expense-error" class="form-error hidden"></p>
+      <div class="dialog-actions">
+        <button type="button" class="btn btn-ghost" data-close>Cancel</button>
+        <button type="submit" class="btn btn-primary">Save expense</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="app.js" defer></script>
+</body>
+</html>
