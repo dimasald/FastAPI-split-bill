@@ -1,4 +1,4 @@
-const API = "http://localhost:8000";
+const API = "https://splitbill-api.onrender.com";
 const TOKEN_KEY = "splitbill.token";
 const EMAIL_KEY = "splitbill.email";
 
