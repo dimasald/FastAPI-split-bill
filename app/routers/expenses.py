@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session, joinedload
 from typing import List
 
 from app.database import get_db
-from app.models import GroupMember, Expense, ExpenseSplit, User
+from app.models import GroupMember, Expense, ExpenseSplit, User, Settlement
 from app.schemas import ExpenseCreate, ExpenseResponse, BalanceResponse
 from app.deps import get_group_member
 
@@ -83,11 +83,7 @@ def get_group_balances(
     db: Session = Depends(get_db),
     membership: GroupMember = Depends(get_group_member)
 ):
-    member_ids = {
-        m.user_id 
-        for m in db.query(GroupMember.user_id).filter(GroupMember.group_id == group_id).all()
-    }
-    
+    member_ids = {m.user_id for m in db.query(GroupMember.user_id).filter(GroupMember.group_id == group_id).all()}
     balances = {user_id: 0 for user_id in member_ids}
 
     expenses = db.query(Expense).filter(Expense.group_id == group_id).all()
@@ -95,27 +91,22 @@ def get_group_balances(
         if exp.paid_by in member_ids:
             balances[exp.paid_by] += exp.amount
 
-    splits = (
-        db.query(ExpenseSplit)
-        .join(Expense, ExpenseSplit.expense_id == Expense.id)
-        .filter(Expense.group_id == group_id)
-        .all()
-    )
+    splits = db.query(ExpenseSplit).join(Expense).filter(Expense.group_id == group_id).all()
     for split in splits:
         if split.user_id in member_ids:
             balances[split.user_id] -= split.amount
+            
+    settlements = db.query(Settlement).filter(Settlement.group_id == group_id).all()
+    for s in settlements:
+        if s.payer_id in member_ids:
+            balances[s.payer_id] += s.amount
+        if s.payee_id in member_ids:
+            balances[s.payee_id] -= s.amount
 
     users = db.query(User).filter(User.id.in_(member_ids)).all()
     user_map = {u.id: u.email for u in users}
 
-    result = []
-    for user_id, balance in balances.items():
-        result.append({
-            "email": user_map[user_id],
-            "balance": balance
-        })
-
-    return result
+    return [{"email": user_map[uid], "balance": bal} for uid, bal in balances.items()]
 
 
 @router.get("/{group_id}/expenses", response_model=List[ExpenseResponse])

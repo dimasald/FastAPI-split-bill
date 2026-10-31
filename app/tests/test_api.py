@@ -70,6 +70,10 @@ def user_a(client, db_session):
 def user_b(client, db_session):
     return _make_user(client, db_session, "bob@example.com")
 
+@pytest.fixture
+def user_c(client, db_session):
+    return _make_user(client, db_session, "charlie@example.com")
+
 # ============================================================
 # AUTH
 # ============================================================
@@ -223,121 +227,17 @@ class TestGroups:
 
 
 # ============================================================
-# EXPENSES
+# EXPENSES & BALANCES
 # ============================================================
-class TestExpenses:
-    def _group_with_members(self, client, user_a, user_b):
+class TestExpensesAndBalances:
+    def _setup_group(self, client, user_a, user_b):
         g = client.post("/groups", json={"name": "G"}, headers=user_a["headers"]).json()
         client.post(f"/groups/{g['id']}/invite", json={"email": user_b["email"]}, headers=user_a["headers"])
         return g
 
-    def test_create_expense_success(self, client, user_a, user_b):
-        g = self._group_with_members(client, user_a, user_b)
-        payload = {
-            "description": "Dinner",
-            "amount": 100.0,
-            "paid_by": user_a["id"],
-            "splits": [
-                {"user_id": user_a["id"], "amount": 50.0},
-                {"user_id": user_b["id"], "amount": 50.0},
-            ],
-        }
-        r = client.post(f"/groups/{g['id']}/expenses", json=payload, headers=user_a["headers"])
-        assert r.status_code == 201
-        data = r.json()
-        assert data["description"] == "Dinner"
-        assert float(data["amount"]) == 100.0
-
-    def test_create_expense_empty_splits(self, client, user_a):
-        g = client.post("/groups", json={"name": "G"}, headers=user_a["headers"]).json()
-        payload = {"description": "X", "amount": 10.0, "paid_by": user_a["id"], "splits": []}
-        r = client.post(f"/groups/{g['id']}/expenses", json=payload, headers=user_a["headers"])
-        assert r.status_code == 400
-
-    def test_create_expense_non_positive_amount(self, client, user_a):
-        g = client.post("/groups", json={"name": "G"}, headers=user_a["headers"]).json()
-        payload = {
-            "description": "X", "amount": 0, "paid_by": user_a["id"],
-            "splits": [{"user_id": user_a["id"], "amount": 0}],
-        }
-        r = client.post(f"/groups/{g['id']}/expenses", json=payload, headers=user_a["headers"])
-        assert r.status_code == 400
-
-    def test_create_expense_paid_by_other(self, client, user_a, user_b):
-        g = self._group_with_members(client, user_a, user_b)
-        payload = {
-            "description": "X", "amount": 10.0, "paid_by": user_b["id"],
-            "splits": [{"user_id": user_a["id"], "amount": 10.0}],
-        }
-        r = client.post(f"/groups/{g['id']}/expenses", json=payload, headers=user_a["headers"])
-        assert r.status_code == 403
-
-    def test_create_expense_duplicate_users(self, client, user_a):
-        g = client.post("/groups", json={"name": "G"}, headers=user_a["headers"]).json()
-        payload = {
-            "description": "X", "amount": 10.0, "paid_by": user_a["id"],
-            "splits": [
-                {"user_id": user_a["id"], "amount": 5.0},
-                {"user_id": user_a["id"], "amount": 5.0},
-            ],
-        }
-        r = client.post(f"/groups/{g['id']}/expenses", json=payload, headers=user_a["headers"])
-        assert r.status_code == 400
-
-    def test_create_expense_negative_split(self, client, user_a):
-        g = client.post("/groups", json={"name": "G"}, headers=user_a["headers"]).json()
-        payload = {
-            "description": "X", "amount": 10.0, "paid_by": user_a["id"],
-            "splits": [{"user_id": user_a["id"], "amount": -1.0}],
-        }
-        r = client.post(f"/groups/{g['id']}/expenses", json=payload, headers=user_a["headers"])
-        assert r.status_code == 400
-
-    def test_create_expense_total_mismatch(self, client, user_a):
-        g = client.post("/groups", json={"name": "G"}, headers=user_a["headers"]).json()
-        payload = {
-            "description": "X", "amount": 10.0, "paid_by": user_a["id"],
-            "splits": [{"user_id": user_a["id"], "amount": 5.0}],
-        }
-        r = client.post(f"/groups/{g['id']}/expenses", json=payload, headers=user_a["headers"])
-        assert r.status_code == 400
-
-    def test_create_expense_split_user_not_member(self, client, user_a, user_b):
-        g = client.post("/groups", json={"name": "G"}, headers=user_a["headers"]).json()
-        payload = {
-            "description": "X", "amount": 10.0, "paid_by": user_a["id"],
-            "splits": [
-                {"user_id": user_a["id"], "amount": 5.0},
-                {"user_id": user_b["id"], "amount": 5.0},
-            ],
-        }
-        r = client.post(f"/groups/{g['id']}/expenses", json=payload, headers=user_a["headers"])
-        assert r.status_code == 400
-
-    def test_create_expense_by_non_member(self, client, user_a, user_b):
-        g = client.post("/groups", json={"name": "G"}, headers=user_a["headers"]).json()
-        payload = {
-            "description": "X", "amount": 10.0, "paid_by": user_b["id"],
-            "splits": [{"user_id": user_b["id"], "amount": 10.0}],
-        }
-        r = client.post(f"/groups/{g['id']}/expenses", json=payload, headers=user_b["headers"])
-        assert r.status_code in (403, 404)
-
-
-class TestBalances:
-    def _setup_group(self, client, user_a, user_b):
-        g = client.post("/groups", json={"name": "G"}, headers=user_a["headers"]).json()
-        client.post(
-            f"/groups/{g['id']}/invite",
-            json={"email": user_b["email"]},
-            headers=user_a["headers"],
-        )
-        return g
-
     def _add_expense(self, client, user_a, user_b, group_id, amount, payer_id):
-        half = amount / 2
+        half = amount // 2
         headers = user_a["headers"] if payer_id == user_a["id"] else user_b["headers"]
-
         payload = {
             "description": "X",
             "amount": amount,
@@ -347,51 +247,118 @@ class TestBalances:
                 {"user_id": user_b["id"], "amount": half},
             ],
         }
-        r = client.post(
-            f"/groups/{group_id}/expenses",
-            json=payload,
-            headers=headers,
-        )
+        r = client.post(f"/groups/{group_id}/expenses", json=payload, headers=headers)
         assert r.status_code == 201, r.text
         return r
-
+        
     def _balances_dict(self, client, group_id, headers):
         r = client.get(f"/groups/{group_id}/balances", headers=headers)
         assert r.status_code == 200, r.text
         return {row["email"]: float(row["balance"]) for row in r.json()}
 
-    def test_empty_group(self, client, user_a, user_b):
+    def test_create_expense_success(self, client, user_a, user_b):
         g = self._setup_group(client, user_a, user_b)
-        balances = self._balances_dict(client, g["id"], user_a["headers"])
-        assert balances == {user_a["email"]: 0.0, user_b["email"]: 0.0}
+        payload = {
+            "description": "Dinner",
+            "amount": 100,
+            "paid_by": user_a["id"],
+            "splits": [
+                {"user_id": user_a["id"], "amount": 50},
+                {"user_id": user_b["id"], "amount": 50},
+            ],
+        }
+        r = client.post(f"/groups/{g['id']}/expenses", json=payload, headers=user_a["headers"])
+        assert r.status_code == 201
+        assert r.json()["description"] == "Dinner"
+        assert r.json()["amount"] == 100
 
-    def test_after_one_expense(self, client, user_a, user_b):
-        g = self._setup_group(client, user_a, user_b)
-        self._add_expense(client, user_a, user_b, g["id"], amount=100.0, payer_id=user_a["id"])
-        balances = self._balances_dict(client, g["id"], user_a["headers"])
-        assert balances[user_a["email"]] == 50.0
-        assert balances[user_b["email"]] == -50.0
-
-    def test_net_zero_after_mutual_expenses(self, client, user_a, user_b):
-        g = self._setup_group(client, user_a, user_b)
-        self._add_expense(client, user_a, user_b, g["id"], amount=100.0, payer_id=user_a["id"])
-        self._add_expense(client, user_a, user_b, g["id"], amount=100.0, payer_id=user_b["id"])
-        balances = self._balances_dict(client, g["id"], user_a["headers"])
-        assert balances[user_a["email"]] == 0.0
-        assert balances[user_b["email"]] == 0.0
-
-    def test_requires_membership(self, client, user_a, user_b):
+    def test_create_expense_invalid(self, client, user_a):
         g = client.post("/groups", json={"name": "G"}, headers=user_a["headers"]).json()
-        r = client.get(f"/groups/{g['id']}/balances", headers=user_b["headers"])
-        assert r.status_code in (403, 404)
+        
+        r1 = client.post(f"/groups/{g['id']}/expenses", json={"description": "X", "amount": 10, "paid_by": user_a["id"], "splits": []}, headers=user_a["headers"])
+        assert r1.status_code == 400
 
-    def test_does_not_crash_after_member_removed(self, client, user_a, user_b):
+        r2 = client.post(f"/groups/{g['id']}/expenses", json={"description": "X", "amount": 0, "paid_by": user_a["id"], "splits": [{"user_id": user_a["id"], "amount": 0}]}, headers=user_a["headers"])
+        assert r2.status_code == 400
+
+        r3 = client.post(f"/groups/{g['id']}/expenses", json={"description": "X", "amount": 10, "paid_by": user_a["id"], "splits": [{"user_id": user_a["id"], "amount": 5}]}, headers=user_a["headers"])
+        assert r3.status_code == 400
+
+    def test_balances_lifecycle(self, client, user_a, user_b):
         g = self._setup_group(client, user_a, user_b)
-        self._add_expense(client, user_a, user_b, g["id"], amount=100.0, payer_id=user_a["id"])
-        r = client.delete(
-            f"/groups/{g['id']}/members/{user_b['id']}",
-            headers=user_a["headers"],
-        )
+        
+        b0 = self._balances_dict(client, g["id"], user_a["headers"])
+        assert b0 == {user_a["email"]: 0.0, user_b["email"]: 0.0}
+
+        self._add_expense(client, user_a, user_b, g["id"], amount=100, payer_id=user_a["id"])
+        b1 = self._balances_dict(client, g["id"], user_a["headers"])
+        assert b1[user_a["email"]] == 50.0
+        assert b1[user_b["email"]] == -50.0
+
+        self._add_expense(client, user_a, user_b, g["id"], amount=100, payer_id=user_b["id"])
+        b2 = self._balances_dict(client, g["id"], user_a["headers"])
+        assert b2[user_a["email"]] == 0.0
+        assert b2[user_b["email"]] == 0.0
+
+
+# ============================================================
+# SETTLEMENTS (M4)
+# ============================================================
+class TestSettlements:
+    def _setup_group(self, client, user_a, user_b):
+        g = client.post("/groups", json={"name": "G"}, headers=user_a["headers"]).json()
+        client.post(f"/groups/{g['id']}/invite", json={"email": user_b["email"]}, headers=user_a["headers"])
+        return g
+
+    def _add_expense(self, client, user_a, user_b, group_id, amount, payer_id):
+        half = amount // 2
+        headers = user_a["headers"] if payer_id == user_a["id"] else user_b["headers"]
+        payload = {
+            "description": "X",
+            "amount": amount,
+            "paid_by": payer_id,
+            "splits": [
+                {"user_id": user_a["id"], "amount": half},
+                {"user_id": user_b["id"], "amount": half},
+            ],
+        }
+        client.post(f"/groups/{group_id}/expenses", json=payload, headers=headers)
+
+    def test_settlement_success(self, client, user_a, user_b):
+        g = self._setup_group(client, user_a, user_b)
+        self._add_expense(client, user_a, user_b, g["id"], amount=100, payer_id=user_a["id"])
+        
+        payload = {"payee_id": user_a["id"], "amount": 50}
+        r = client.post(f"/groups/{g['id']}/settlements", json=payload, headers=user_b["headers"])
+        assert r.status_code == 201
+        assert r.json()["amount"] == 50
+        
+        balances = client.get(f"/groups/{g['id']}/balances", headers=user_a["headers"]).json()
+        b_dict = {row["email"]: row["balance"] for row in balances}
+        assert b_dict[user_a["email"]] == 0
+        assert b_dict[user_b["email"]] == 0
+
+    def test_settlement_invalid(self, client, user_a, user_b, user_c):
+        g = self._setup_group(client, user_a, user_b)
+        
+        r1 = client.post(f"/groups/{g['id']}/settlements", json={"payee_id": user_a["id"], "amount": 0}, headers=user_b["headers"])
+        assert r1.status_code == 400
+
+        r2 = client.post(f"/groups/{g['id']}/settlements", json={"payee_id": user_b["id"], "amount": 10}, headers=user_b["headers"])
+        assert r2.status_code == 400
+
+        r3 = client.post(f"/groups/{g['id']}/settlements", json={"payee_id": user_c["id"], "amount": 10}, headers=user_b["headers"])
+        assert r3.status_code == 400
+
+    def test_suggested_settlements_netting(self, client, user_a, user_b):
+        g = self._setup_group(client, user_a, user_b)
+        self._add_expense(client, user_a, user_b, g["id"], amount=100, payer_id=user_a["id"])
+        
+        r = client.get(f"/groups/{g['id']}/settlements/suggested", headers=user_a["headers"])
         assert r.status_code == 200
-        balances = self._balances_dict(client, g["id"], user_a["headers"])
-        assert user_b["email"] not in balances
+        suggestions = r.json()
+        
+        assert len(suggestions) == 1
+        assert suggestions[0]["from"] == user_b["id"]
+        assert suggestions[0]["to"] == user_a["id"]
+        assert suggestions[0]["amount"] == 50

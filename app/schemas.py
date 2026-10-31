@@ -66,3 +66,16 @@ class ExpenseResponse(BaseModel):
 class BalanceResponse(BaseModel):
     email: EmailStr
     balance: int
+
+class SettlementCreate(BaseModel):
+    payee_id: int
+    amount: int
+
+class SettlementResponse(BaseModel):
+    id: int
+    payer_id: int
+    payee_id: int
+    amount: int
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

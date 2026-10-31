@@ -49,7 +49,16 @@ class ExpenseSplit(Base):
     expense_id = Column(Integer, ForeignKey("expenses.id"), nullable=False)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     amount = Column(Integer, nullable=False)
-
+ 
     expense = relationship("Expense", back_populates="splits")
     user = relationship("User")
 
+class Settlement(Base):
+    __tablename__ = "settlements"
+
+    id = Column(Integer, primary_key=True)
+    group_id = Column(Integer, ForeignKey("groups.id"), nullable=False, index=True)
+    payer_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    payee_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    amount = Column(Integer, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
